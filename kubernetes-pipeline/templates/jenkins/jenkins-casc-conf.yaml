@@ -28,7 +28,7 @@ data:
                   username: ${GITHUB_USERNAME}
                   password: ${GITHUB_PASSWORD}
     jenkins:
-      systemMessage: "WSO2 CI/CD Setup"
+      systemMessage: "Kubernetes CI/CD Pipeline for WSO2 Products"
       securityRealm:
         local:
           allowsSignup: false
@@ -64,6 +64,9 @@ data:
                         {{- end }}
                         credentials('github_credentials')
                     }
+                    {{- if $image.customImage.branch }}
+                    branch('{{ $image.customImage.branch }}')
+                    {{- end }}
                 }
             }
             triggers {
@@ -78,17 +81,19 @@ data:
                 {{- if and (not (eq $root.Values.wso2Username "")) (not (eq $root.Values.wso2Password "")) }}
                 docker login docker.wso2.com -u \$WSO2_USERNAME -p \$WSO2_PASSWORD
                 {{- end }}
-                docker login -u \$REGISTRY_USERNAME -p \$REGISTRY_PASSWORD
+                docker login \$REGISTRY_SERVER -u \$REGISTRY_USERNAME -p \$REGISTRY_PASSWORD
 
                 TIMESTAMP=`date +%Y%m%d%H%M%S`
-                REGISTRY_NAME="{{ $root.Values.registry.address }}/{{ $image.organization }}"
+
+                REGISTRY_IDENTIFIER="{{ template "registry.identifier" $root }}"
+
                 REPOSITORY="{{ $image.repository }}"
                 {{- if $image.wso2microIntegrator }}
                 BASE_IMAGE="{{ $image.wso2microIntegrator.baseImage }}"
                 {{- else }}
                 BASE_IMAGE="{{ $image.customImage.baseImage }}"
                 {{- end }}
-                TAGGED_BASE_IMAGE=\$REGISTRY_NAME/\$REPOSITORY-wum:\$TIMESTAMP
+                TAGGED_BASE_IMAGE=\$REGISTRY_IDENTIFIER/\$REPOSITORY-wum:\$TIMESTAMP
 
                 # Tag WSO2 image with current timestamp
                 docker pull \$BASE_IMAGE
@@ -100,13 +105,18 @@ data:
                 {{- if $image.wso2microIntegrator }}
                 mvn clean install -Ddockerfile.base.image=\$TAGGED_BASE_IMAGE -Ddockerfile.tag=\$TIMESTAMP-\$TAG -Ddockerfile.repository=\$REGISTRY_NAME/\$REPOSITORY -Ddockerfile.username=\$REGISTRY_USERNAME -Ddockerfile.password=\$REGISTRY_PASSWORD -Ddockerfile.build.pullNewerImage=false
                 {{- else }}
-                sed -i \"s|<BASE>|\$TAGGED_BASE_IMAGE|\" Dockerfile
-                docker build -t \$REGISTRY_NAME/\$REPOSITORY:\$TIMESTAMP-\$TAG .
-                docker push \$REGISTRY_NAME/\$REPOSITORY:\$TIMESTAMP-\$TAG
+
+                {{- if $image.customImage.subPath }}
+                cd {{ $image.customImage.subPath }}
                 {{- end }}
 
-                docker tag \$REGISTRY_NAME/\$REPOSITORY:\$TIMESTAMP-\$TAG \$REGISTRY_NAME/\$REPOSITORY:latest
-                docker push \$REGISTRY_NAME/\$REPOSITORY:latest
+                sed -i \"s|<BASE>|\$TAGGED_BASE_IMAGE|\" Dockerfile
+                docker build -t \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$TIMESTAMP-\$TAG .
+                docker push \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$TIMESTAMP-\$TAG
+                {{- end }}
+
+                docker tag \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$TIMESTAMP-\$TAG \$REGISTRY_IDENTIFIER/\$REPOSITORY:latest
+                docker push \$REGISTRY_IDENTIFIER/\$REPOSITORY:latest
                 """)
             }
           }
@@ -128,6 +138,9 @@ data:
                         {{- end }}
                         credentials('github_credentials')
                     }
+                    {{- if $image.customImage.branch }}
+                    branch('{{ $image.customImage.branch }}')
+                    {{- end }}
                 }
             }
             triggers {
@@ -139,10 +152,12 @@ data:
                 {{- if and (not (eq $root.Values.wso2Username "")) (not (eq $root.Values.wso2Password "")) }}
                 docker login docker.wso2.com -u \$WSO2_USERNAME -p \$WSO2_PASSWORD
                 {{- end }}
-                docker login -u \$REGISTRY_USERNAME -p \$REGISTRY_PASSWORD
+                docker login \$REGISTRY_SERVER -u \$REGISTRY_USERNAME -p \$REGISTRY_PASSWORD
 
                 TIMESTAMP=`date +%Y%m%d%H%M%S`
-                REGISTRY_NAME="{{ $root.Values.registry.address }}/{{ $image.organization }}"
+
+                REGISTRY_IDENTIFIER="{{ template "registry.identifier" $root }}"
+
                 REPOSITORY="{{ $image.repository }}"
                 {{- if $image.wso2microIntegrator }}
                 BASE_IMAGE="{{ $image.wso2microIntegrator.baseImage }}"
@@ -150,26 +165,31 @@ data:
                 BASE_IMAGE="{{ $image.customImage.baseImage }}"
                 {{- end }}
 
-                WUM_TIMESTAMP=`docker images \$REGISTRY_NAME/\$REPOSITORY-wum --format '{{ "{{ .Tag }}" }}' | sort -nrk1 | head -1`
+                WUM_TIMESTAMP=`docker images \$REGISTRY_IDENTIFIER/\$REPOSITORY-wum --format '{{ "{{ .Tag }}" }}' | sort -nrk1 | head -1`
                 if [ -z "\$WUM_TIMESTAMP" ]
                 then
                   docker pull \$BASE_IMAGE
-                  docker tag \$BASE_IMAGE \$REGISTRY_NAME/\$REPOSITORY-wum:\$TIMESTAMP
+                  docker tag \$BASE_IMAGE \$REGISTRY_IDENTIFIER/\$REPOSITORY-wum:\$TIMESTAMP
                   WUM_TIMESTAMP=\$TIMESTAMP
                 fi
-                TAGGED_BASE_IMAGE=\$REGISTRY_NAME/\$REPOSITORY-wum:\$WUM_TIMESTAMP
+                TAGGED_BASE_IMAGE=\$REGISTRY_IDENTIFIER/\$REPOSITORY-wum:\$WUM_TIMESTAMP
 
                 TAG=`git rev-parse --short HEAD`
                 {{- if $image.wso2microIntegrator }}
                 mvn clean install -Ddockerfile.base.image=\$TAGGED_BASE_IMAGE -Ddockerfile.tag=\$TIMESTAMP-\$TAG -Ddockerfile.repository=\$REGISTRY_NAME/\$REPOSITORY -Ddockerfile.username=\$REGISTRY_USERNAME -Ddockerfile.password=\$REGISTRY_PASSWORD -Ddockerfile.build.pullNewerImage=false
                 {{- else }}
-                sed -i \"s|<BASE>|\$TAGGED_BASE_IMAGE|\" Dockerfile
-                docker build -t \$REGISTRY_NAME/\$REPOSITORY:\$TIMESTAMP-\$TAG .
-                docker push \$REGISTRY_NAME/\$REPOSITORY:\$WUM_TIMESTAMP-\$TAG
+
+                {{- if $image.customImage.subPath }}
+                cd {{ $image.customImage.subPath }}
                 {{- end }}
 
-                docker tag \$REGISTRY_NAME/\$REPOSITORY:\$WUM_TIMESTAMP-\$TAG \$REGISTRY_NAME/\$REPOSITORY
-                docker push \$REGISTRY_NAME/\$REPOSITORY
+                sed -i \"s|<BASE>|\$TAGGED_BASE_IMAGE|\" Dockerfile
+                docker build -t \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$WUM_TIMESTAMP-\$TAG .
+                docker push \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$WUM_TIMESTAMP-\$TAG
+                {{- end }}
+
+                docker tag \$REGISTRY_IDENTIFIER/\$REPOSITORY:\$WUM_TIMESTAMP-\$TAG \$REGISTRY_IDENTIFIER/\$REPOSITORY
+                docker push \$REGISTRY_IDENTIFIER/\$REPOSITORY
                 """)
             }
           }

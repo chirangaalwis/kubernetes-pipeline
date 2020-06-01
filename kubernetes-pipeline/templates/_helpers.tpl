@@ -43,3 +43,23 @@ Create chart name and version as used by the chart label.
 {{- define "jenkins.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Generate container image registry identifier using the provided input.
+
+The identifier refers to the prefix prepended to the container repository name in the
+Fully Qualified Image Name of the container image.
+
+The format followed is hostname[:port]/username.
+*/}}
+{{- define "registry.identifier" -}}
+{{- if and (eq .Values.registry.address "index.docker.io") (eq .Values.registry.username "") }}
+{{- "" -}}
+{{ else if and (eq .Values.registry.address "index.docker.io") (not (eq .Values.registry.username "")) }}
+{{- .Values.registry.username | trunc 63 | trimSuffix "-" -}}
+{{ else if and (not (eq .Values.registry.address "")) (eq .Values.registry.username "") }}
+{{- .Values.registry.address | trunc 63 | trimSuffix "-" -}}
+{{ else }}
+{{- .Values.registry.address | trunc 63 | trimSuffix "-" -}}/{{- .Values.registry.username | trunc 63 | trimSuffix "-" -}}
+{{- end }}
+{{- end -}}
