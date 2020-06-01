@@ -265,6 +265,9 @@ data:
                         url('{{ .chart.repo }}')
                         credentials('github_credentials')
                     }
+                    {{- if and (.chart.customChart) (not (eq .chart.branch "")) }}
+                    branch('{{ .chart.branch }}')
+                    {{- end }}
                 }
             }
             triggers {
@@ -303,6 +306,10 @@ data:
                       fi
                   done;
               }
+
+              {{- if and (.chart.customChart) (not (eq .chart.subPath "")) }}
+              cd {{ .chart.subPath }}
+              {{- end }}
 
               cat {{ .chart.name }}/values-dev.yaml | base64 >test
               VALUES_DEV_CONTENT=`tr -d '\\n' < test`
