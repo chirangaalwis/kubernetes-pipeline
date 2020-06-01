@@ -12,30 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Github credentials for thea account containing the CI/CD Repositories
+# Github credentials for the account containing the CI/CD Repositories
 github:
   username: <GITHUB_USERNAME>
   password: <GITHUB_PASSWORD>
 
-# Credentials to access the private Dockerhub registry
+# Credentials to access the target container registry
 registry:
   server: 'https://index.docker.io/v1/'
-  username: &reg_username <REGISTRY_USERNAME>
-  password: &reg_password <REGISTRY_PASSWORD>
+  auth:
+    username: &reg_auth_username <REGISTRY_AUTH_USERNAME>
+    password: &reg_auth_password <REGISTRY_AUTH_PASSWORD>
   email: &reg_email <REGISTRY_EMAIL>
-  address: &reg_address index.docker.io
+  address: &reg_address <REGISTRY_ADDRESS>
+  username: <REGISTRY_USERNAME/ORGANIZATION>
   # Add each repositories that would be used in the deployment
   repositories:
     &reg_repos
-    - <REGISTRY_USERNAME>/wso2ei-integrator
+    - <REGISTRY_USERNAME>/wso2ei
 
 # Values to configure Spinnaker
 spinnaker:
   dockerRegistries:
-    - name: dockerhub
+    - name: target
       address: *reg_address
-      username: *reg_username
-      password: *reg_password
+      username: *reg_auth_username
+      password: *reg_auth_password
       email: *reg_email
       repositories:
         *reg_repos
@@ -52,8 +54,7 @@ applications:
       version: 6.5.0-3
       repo: 'https://github.com/wso2-incubator/cicd-sample-chart-ei'
     images:
-      - organization: *reg_username
-        repository: wso2ei-integrator
+      - repository: wso2ei-integrator
         deployment: wso2ei
         customImage:
           baseImage: 'wso2/wso2ei-integrator:6.5.0'

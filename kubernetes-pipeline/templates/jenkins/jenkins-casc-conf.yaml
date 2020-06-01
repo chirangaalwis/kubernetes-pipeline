@@ -265,7 +265,7 @@ data:
                         url('{{ .chart.repo }}')
                         credentials('github_credentials')
                     }
-                    {{- if and (.chart.customChart) (not (eq .chart.branch "")) }}
+                    {{- if and .chart.customChart .chart.branch }}
                     branch('{{ .chart.branch }}')
                     {{- end }}
                 }
@@ -307,7 +307,7 @@ data:
                   done;
               }
 
-              {{- if and (.chart.customChart) (not (eq .chart.subPath "")) }}
+              {{- if and .chart.customChart .chart.subPath }}
               cd {{ .chart.subPath }}
               {{- end }}
 
