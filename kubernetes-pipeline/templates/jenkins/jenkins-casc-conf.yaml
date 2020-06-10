@@ -38,6 +38,7 @@ data:
       authorizationStrategy: loggedInUsersCanDoAnything
     jobs:
       {{- $namespace := .Release.Namespace }}
+      {{- $jenkinsBaseImageUpdateCronFrequency := .Values.jenkins.jobs.baseImageUpdate.cronFrequency }}
       {{- $root := . }}
       {{- range .Values.applications }}
       {{- $application := . }}
@@ -69,9 +70,11 @@ data:
                     {{- end }}
                 }
             }
+            {{- if $jenkinsBaseImageUpdateCronFrequency }}
             triggers {
-              cron('@daily')
+              cron('{{ $jenkinsBaseImageUpdateCronFrequency }}')
             }
+            {{- end }}
             steps {
               shell("""
                 timestamp() {
@@ -194,8 +197,8 @@ data:
             }
           }
       {{- end }}
-      # Microgateway image build
       {{- if $image.microgateway }}
+      # Microgateway image build
       - script: >
           job("{{ $application.name }}/{{ $image.repository }}-image") {
             description()
